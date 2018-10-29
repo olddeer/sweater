@@ -1,14 +1,18 @@
 package com.example.sweater.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jdk.nashorn.internal.ir.annotations.Ignore;
 import org.hibernate.validator.constraints.Length;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
+import java.util.Set;
 
 @Entity
 public class Message {
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
+    @Column(name="message_id")
     private Long id;
 
     @NotBlank(message = "Please fill the message")
@@ -16,6 +20,22 @@ public class Message {
     private String text;
     @Length(max = 255, message = "Message too long (more than 255)")
     private String tag;
+    @ManyToMany
+    @JoinTable(
+        name = "like_user",
+        joinColumns = { @JoinColumn(name = "message_id") },
+        inverseJoinColumns = { @JoinColumn(name = "user_id") }
+    )
+    private Set<User> users;
+@Transient
+    private int countOfLikes;
+    public Set<User> getUsers() {
+        return users;
+    }
+
+    public void setUsers(Set<User> users) {
+        this.users = users;
+    }
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
@@ -30,6 +50,15 @@ public class Message {
         this.author = user;
         this.text = text;
         this.tag = tag;
+    }
+
+    public int getCountOfLikes() {
+        return countOfLikes;
+    }
+
+    public void setCountOfLikes() {
+       if(users!=null)
+        this.countOfLikes = users.size();
     }
 
     public String getAuthorName() {

@@ -7,7 +7,7 @@
         <form method="post" enctype="multipart/form-data">
             <div class="form-group">
                 <input type="text" class="form-control ${(textError??)?string('is-invalid', '')}"
-                       value="<#if message??>${message.text}</#if>" name="text" placeholder="Введите сообщение" />
+                       value="<#if message??>${message.text}</#if>" name="text" placeholder="Enter message" />
                 <#if textError??>
                     <div class="invalid-feedback">
                         ${textError}

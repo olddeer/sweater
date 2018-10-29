@@ -19,9 +19,14 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.validation.Valid;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class MainController {
@@ -37,7 +42,7 @@ public class MainController {
     }
 
     @GetMapping("/main")
-    public String main(@RequestParam(required = false, defaultValue = "") String filter, Model model) {
+    public String main(  @AuthenticationPrincipal User user, @RequestParam(required = false, defaultValue = "") String filter, Model model) {
         Iterable<Message> messages;
 
         if (filter != null && !filter.isEmpty()) {
@@ -45,8 +50,11 @@ public class MainController {
         } else {
             messages = messageRepo.findAll();
         }
-
+        for(Message x: messages){
+            x.setCountOfLikes();
+        }
         model.addAttribute("messages", messages);
+        model.addAttribute("currentUser",user);
         model.addAttribute("filter", filter);
 
         return "main";
@@ -77,24 +85,26 @@ public class MainController {
 
         Iterable<Message> messages = messageRepo.findAll();
 
-        model.addAttribute("messages", messages);
+        for(Message x: messages){
 
+            x.setCountOfLikes();
+
+        }
+        model.addAttribute("messages", messages);
+        model.addAttribute("currentUser",user);
         return "main";
     }
 
-    private void saveFile(@Valid Message message, @RequestParam("file") MultipartFile file) throws IOException {
+    private void saveFile(@Valid Message message, MultipartFile file) throws IOException {
         if (file != null && !file.getOriginalFilename().isEmpty()) {
-            File uploadDir = new File(uploadPath);
 
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
-
-            String uuidFile = UUID.randomUUID().toString();
+          Path fileStorageLocation =  Paths.get(uploadPath)
+                .toAbsolutePath().normalize();
+            Files.createDirectories(fileStorageLocation);
+              String uuidFile = UUID.randomUUID().toString();
             String resultFilename = uuidFile + "." + file.getOriginalFilename();
-
-            file.transferTo(new File(uploadPath + "/" + resultFilename));
-
+            Path targetLocation =  fileStorageLocation.resolve(resultFilename);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
             message.setFilename(resultFilename);
         }
     }
@@ -106,8 +116,11 @@ public class MainController {
             Model model,
             @RequestParam(required = false) Message message
     ) {
+        for(Message x: user.getMessages()){
+            x.setCountOfLikes();
+        }
         Set<Message> messages = user.getMessages();
-
+        model.addAttribute("currentUser",currentUser);
         model.addAttribute("userChannel", user);
         model.addAttribute("subscriptionsCount", user.getSubscriptions().size());
         model.addAttribute("subscribersCount", user.getSubscribers().size());
@@ -123,11 +136,16 @@ public class MainController {
     public String updateMessage(
             @AuthenticationPrincipal User currentUser,
             @PathVariable Long user,
+            @Valid Message messageTrue,
             @RequestParam("id") Message message,
             @RequestParam("text") String text,
             @RequestParam("tag") String tag,
-            @RequestParam("file") MultipartFile file
+            @RequestParam("file") MultipartFile file,
+             Model model,
+             RedirectAttributes redirectAttributes
     ) throws IOException {
+        if(message!=null){
+
         if (message.getAuthor().equals(currentUser)) {
             if (!StringUtils.isEmpty(text)) {
                 message.setText(text);
@@ -140,8 +158,25 @@ public class MainController {
             saveFile(message, file);
 
             messageRepo.save(message);
-        }
+        }}
+        else
+        {
+            messageTrue.setAuthor(currentUser);
+                saveFile(messageTrue, file);
+                model.addAttribute("message", null);
+                messageRepo.save(messageTrue);
+            Iterable<Message> messages = messageRepo.findAll();
 
+            for(Message x: messages){
+
+                x.setCountOfLikes();
+
+            }
+            model.addAttribute("messages", messages);
+            model.addAttribute("currentUser",currentUser);
+            return "redirect:/main";
+
+        }
         return "redirect:/user-messages/" + user;
     }
 }

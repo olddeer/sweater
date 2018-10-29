@@ -6,10 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import javax.persistence.*;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 @Entity
 @Table(name = "usr")
@@ -28,10 +25,8 @@ public class User implements UserDetails {
     private String email;
     private String activationCode;
 
-    @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id"))
-    @Enumerated(EnumType.STRING)
-    private Set<Role> roles;
+            @ManyToMany(mappedBy = "users",cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Role> roles = new TreeSet<>();
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Message> messages;
@@ -43,6 +38,16 @@ public class User implements UserDetails {
             inverseJoinColumns = { @JoinColumn(name = "subscriber_id") }
     )
     private Set<User> subscribers = new HashSet<>();
+    @ManyToMany(mappedBy = "users",cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Message> messageses;
+
+    public Set<Message> getMessageses() {
+        return messageses;
+    }
+
+    public void setMessageses(Set<Message> messageses) {
+        this.messageses = messageses;
+    }
 
     @ManyToMany
     @JoinTable(
@@ -67,7 +72,8 @@ public class User implements UserDetails {
     }
 
     public boolean isAdmin() {
-        return roles.contains(Role.ADMIN);
+
+                     return roles.contains(new Role(1L,"admin"));
     }
 
     public Long getId() {

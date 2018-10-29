@@ -1,7 +1,10 @@
 package com.example.sweater.service;
 
+import com.example.sweater.domain.Message;
 import com.example.sweater.domain.Role;
 import com.example.sweater.domain.User;
+import com.example.sweater.repos.MessageRepo;
+import com.example.sweater.repos.RoleRepository;
 import com.example.sweater.repos.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +19,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class UserSevice implements UserDetailsService {
+public class UserService implements UserDetailsService {
     @Autowired
     private UserRepo userRepo;
 
@@ -24,7 +27,13 @@ public class UserSevice implements UserDetailsService {
     private MailSender mailSender;
 
     @Autowired
+    private MessageRepo messageRepo;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RoleRepository roleRepository;
 
     @Value("${hostname}")
     private String hostname;
@@ -48,7 +57,7 @@ public class UserSevice implements UserDetailsService {
         }
 
         user.setActive(true);
-        user.setRoles(Collections.singleton(Role.USER));
+        user.setRoles(Collections.singleton(roleRepository.getOne(1L)));
         user.setActivationCode(UUID.randomUUID().toString());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
@@ -94,15 +103,11 @@ public class UserSevice implements UserDetailsService {
     public void saveUser(User user, String username, Map<String, String> form) {
         user.setUsername(username);
 
-        Set<String> roles = Arrays.stream(Role.values())
-                .map(Role::name)
-                .collect(Collectors.toSet());
-
+        List<Role> roles = roleRepository.findAll();
         user.getRoles().clear();
-
         for (String key : form.keySet()) {
             if (roles.contains(key)) {
-                user.getRoles().add(Role.valueOf(key));
+                user.getRoles().add(roleRepository.findRoleByName(key));
             }
         }
 
@@ -134,6 +139,13 @@ public class UserSevice implements UserDetailsService {
         }
     }
 
+    public Integer likeMessage(User user, Message msg){
+        user.getMessages().add(msg);
+        msg.getUsers().add(user);
+        userRepo.save(user);
+        return userRepo.countAllByMessagesesEquals( messageRepo.save(msg));
+    }
+
     public void subscribe(User currentUser, User user) {
         user.getSubscribers().add(currentUser);
 
@@ -144,5 +156,9 @@ public class UserSevice implements UserDetailsService {
         user.getSubscribers().remove(currentUser);
 
         userRepo.save(user);
+    }
+
+    public User findById(Long userId) {
+        return  userRepo.findById(userId).get();
     }
 }
